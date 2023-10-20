@@ -7,15 +7,26 @@ import sys
 import boto3
 import json
 
-def invoke_llm(user_prompt):
-    client = boto3.client('bedrock-runtime', region_name='us-east-1')
-    prompt = f"""
+def writing_prompt(user_prompt):
+    return f"""
 
 Human: Write {user_prompt}
 
 Assistant:"""
+
+def revise_prompt(user_prompt, current_paragraph):
+    return f"""
+
+Human: Revise the following paragraph this way: {user_prompt}. Only output the revised paragraph.
+---
+{current_paragraph}
+---
+
+Assistant:"""
+
+def invoke_llm(prompt):
+    client = boto3.client('bedrock-runtime', region_name='us-east-1')
     
-    print(prompt)
     try:
         response = client.invoke_model(
             body = bytes(json.dumps({
@@ -56,8 +67,13 @@ article_prompt = st.text_area("What would you like to write?", placeholder="A sh
 if st.button("Write"):
     # Use langchain to invoke a Bedrock model to generate text based on article_prompt
     # Split the text into paragraphs and add it to session_state["article"]
-    raw_article = invoke_llm(article_prompt)
+    raw_article = invoke_llm(writing_prompt(article_prompt))
     st.session_state["article"] = raw_article.split("\n\n")
+with st.expander("Start over"):
+    "Are you sure you want to remove everything that has been written?"
+    if st.button("Yes"):
+        print("Cleaning")
+        st.session_state["article"] = []
     
     
 
@@ -74,6 +90,13 @@ for idx, paragraph in enumerate(st.session_state["article"]):
             st.session_state["article"][idx] = editing_text_area
             st.session_state["editing_idx"] = None
             st.rerun()
+        revise_instruction= st.text_area("How would you like to revise this paragraph?", placeholder="Make the tone softer")
+        if st.button("Revise", key=f"revise-{idx}"):
+            revised_paragraph = invoke_llm(revise_prompt(revise_instruction, editing_text_area))
+            st.session_state["article"][idx] = revised_paragraph
+            st.rerun()
+            
+            
     else:
         paragraph
     # when the paragraph is clicked, turn the text into a text area with the paragraph as placeholder
