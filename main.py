@@ -10,7 +10,7 @@ import json
 def writing_prompt(user_prompt):
     return f"""
 
-Human: Write {user_prompt}
+Human: Write {user_prompt}. Only show me what you write, do NOT say something like "Here is an article:" or "Here is a story" in the beginning.
 
 Assistant:"""
 
@@ -64,6 +64,7 @@ if "editing_idx" not in st.session_state:
 st.title("AI Writer")
 
 article_prompt = st.text_area("What would you like to write?", placeholder="A short story about an unicorn")
+
 if st.button("Write"):
     # Use langchain to invoke a Bedrock model to generate text based on article_prompt
     # Split the text into paragraphs and add it to session_state["article"]
@@ -75,6 +76,10 @@ with st.expander("Start over"):
         print("Cleaning")
         st.session_state["article"] = []
     
+overall_revise_prompt = st.text_area("How would you like to revise the whole article?", placeholder="Change from third-person to first-person")
+if st.button("Revise"):
+    revised_article = invoke_llm(revise_prompt(overall_revise_prompt, "\n\n".join(st.session_state["article"])))
+    st.session_state["article"] = revised_article.split("\n\n")
     
 
 # Add a devider
