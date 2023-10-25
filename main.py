@@ -8,51 +8,19 @@ import boto3
 import json
 import re
 
-def writing_prompt(user_prompt):
-    return f"""
-
-Human: Write {user_prompt}. Only show me what you write, do NOT say something like "Here is an article:" or "Here is a story" in the beginning.
-
-Assistant:"""
-
-def revise_prompt(user_prompt, current_paragraph):
-    return f"""
-
-Human: Revise the following paragraph this way: {user_prompt}. Only output the revised paragraph.
----
-{current_paragraph}
----
-
-Assistant:"""
-
-def overall_revise_prompt(user_prompt, current_paragraph):
-    return f"""
-
-Human: Revise the whole article this way: {user_prompt}. Output the whole article, including the paragraphs that have not changed.
----
-{current_paragraph}
----
-
-Assistant:"""
+from prompts import *
+import config
 
 def invoke_llm(prompt):
-    client = boto3.client('bedrock-runtime', region_name='us-east-1')
+    client = boto3.client('bedrock-runtime', region_name=config.AWS_REGION)
     
     try:
         response = client.invoke_model(
             body = bytes(json.dumps({
                 "prompt": prompt,
-                "max_tokens_to_sample": 2048,
-                "temperature": 1.0,
-                "top_k": 250,
-                "top_p": 1,
-                "stop_sequences": [
-                "\\n\\nHuman:"
-                ],
-                "anthropic_version": "bedrock-2023-05-31"
+                **config.MODEL_PARAMETERS
             }), 'utf-8'),
-            modelId = "anthropic.claude-v2",
-            #modelId = "anthropic.claude-instant-v1",
+            modelId = config.MODEL_ID,
             contentType = "application/json",
             accept = "application/json"
         )
@@ -84,7 +52,6 @@ def split_paragraphs(full_article):
             output.append(paragraph)
     return output
             
-
 
 if "article" not in st.session_state: 
     st.session_state["article"] = []
