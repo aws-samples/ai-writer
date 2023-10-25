@@ -140,13 +140,17 @@ for idx, paragraph in enumerate(st.session_state["article"]):
             
             
     else:
-        text_col, action_col = st.columns([0.8, 0.2])
+        text_col, action_col_1, action_col_2 = st.columns([0.8, 0.1, 0.12])
         with text_col:
             paragraph
     # when the paragraph is clicked, turn the text into a text area with the paragraph as placeholder
-        with action_col:
+        with action_col_1:
             if st.button("edit", key=f"edit-{idx}"):
                 st.session_state["editing_idx"] = idx
+                st.rerun()
+        with action_col_2:
+            if st.button("Delete", key=f"delete-{idx}"):
+                st.session_state["article"].pop(idx)
                 st.rerun()
             
 st.markdown('---')
