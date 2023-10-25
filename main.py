@@ -6,6 +6,7 @@ import streamlit as st
 import sys
 import boto3
 import json
+import re
 
 def writing_prompt(user_prompt):
     return f"""
@@ -18,6 +19,16 @@ def revise_prompt(user_prompt, current_paragraph):
     return f"""
 
 Human: Revise the following paragraph this way: {user_prompt}. Only output the revised paragraph.
+---
+{current_paragraph}
+---
+
+Assistant:"""
+
+def overall_revise_prompt(user_prompt, current_paragraph):
+    return f"""
+
+Human: Revise the whole article this way: {user_prompt}. Output the whole article, including the paragraphs that have not changed.
 ---
 {current_paragraph}
 ---
@@ -40,8 +51,8 @@ def invoke_llm(prompt):
                 ],
                 "anthropic_version": "bedrock-2023-05-31"
             }), 'utf-8'),
-            #modelId = "anthropic.claude-v2",
-            modelId = "anthropic.claude-instant-v1",
+            modelId = "anthropic.claude-v2",
+            #modelId = "anthropic.claude-instant-v1",
             contentType = "application/json",
             accept = "application/json"
         )
@@ -53,7 +64,27 @@ def invoke_llm(prompt):
         print('Error invoking endpoint')
         print(e)
         raise Exception("Error invoking LLM")
-        
+
+def split_paragraphs(full_article):
+    # split the full_article into an array of paragraphs by a new line, but keep markdown code blocks wrapped by three backquotes in one paragraph
+    paragraphs = full_article.splitlines(True)
+    output = []
+    in_code_block = False
+    for paragraph in paragraphs:
+        if in_code_block:
+            if "```" in paragraph:
+                in_code_block = False
+            output[-1] += paragraph
+            continue
+        elif paragraph.startswith("```"):
+            in_code_block = True
+            output.append(paragraph)
+            continue
+        elif paragraph.strip() != "":
+            output.append(paragraph)
+    return output
+            
+
 
 if "article" not in st.session_state: 
     st.session_state["article"] = []
@@ -61,25 +92,26 @@ if "article" not in st.session_state:
 if "editing_idx" not in st.session_state: 
     st.session_state["editing_idx"] = None
 
+# Start of layout
 st.title("AI Writer")
 
-article_prompt = st.text_area("What would you like to write?", placeholder="A short story about an unicorn")
+is_starting_over = len(st.session_state["article"]) == 0
 
-if st.button("Write"):
-    # Use langchain to invoke a Bedrock model to generate text based on article_prompt
-    # Split the text into paragraphs and add it to session_state["article"]
-    raw_article = invoke_llm(writing_prompt(article_prompt))
-    st.session_state["article"] = raw_article.split("\n\n")
-with st.expander("Start over"):
-    "Are you sure you want to remove everything that has been written?"
-    if st.button("Yes"):
-        print("Cleaning")
-        st.session_state["article"] = []
+with st.expander("Start over", expanded = is_starting_over):
+    article_prompt = st.text_area("What would you like to write?", placeholder="A short story about an unicorn")
     
-overall_revise_prompt = st.text_area("How would you like to revise the whole article?", placeholder="Change from third-person to first-person")
-if st.button("Revise"):
-    revised_article = invoke_llm(revise_prompt(overall_revise_prompt, "\n\n".join(st.session_state["article"])))
-    st.session_state["article"] = revised_article.split("\n\n")
+    if st.button("Write"):
+        # Use langchain to invoke a Bedrock model to generate text based on article_prompt
+        # Split the text into paragraphs and add it to session_state["article"]
+        raw_article = invoke_llm(writing_prompt(article_prompt))
+        st.session_state["article"] = split_paragraphs(raw_article)
+        st.rerun()
+        
+with st.expander("Revise the whole article", expanded = not is_starting_over):
+    overall_revise_instruction = st.text_area("How would you like to revise the whole article?", placeholder="Change from third-person to first-person")
+    if st.button("Revise"):
+        revised_article = invoke_llm(overall_revise_prompt(overall_revise_instruction, "\n\n".join(st.session_state["article"])))
+        st.session_state["article"] = split_paragraphs(revised_article)
     
 
 # Add a devider
@@ -87,28 +119,36 @@ st.markdown("---")
 
 for idx, paragraph in enumerate(st.session_state["article"]):
     if idx == st.session_state["editing_idx"]:
-        editing_text_area = st.text_area("(Editing)", 
-            value=paragraph, 
-            #on_change=update_paragraph
-        )
-        if editing_text_area != st.session_state["article"][idx] or st.button("^ save", key=f"edit-{idx}"):
-            st.session_state["article"][idx] = editing_text_area
-            st.session_state["editing_idx"] = None
-            st.rerun()
-        revise_instruction= st.text_area("How would you like to revise this paragraph?", placeholder="Make the tone softer")
-        if st.button("Revise", key=f"revise-{idx}"):
-            revised_paragraph = invoke_llm(revise_prompt(revise_instruction, editing_text_area))
-            st.session_state["article"][idx] = revised_paragraph
-            st.rerun()
+        st.markdown("---")
+        text_col, action_col = st.columns([0.8, 0.2])
+        with text_col:
+            editing_text_area = st.text_area("(Editing)", 
+                value=paragraph, 
+                #on_change=update_paragraph
+            )
+        with action_col:
+            if editing_text_area != st.session_state["article"][idx] or st.button("Save", key=f"edit-{idx}"):
+                st.session_state["article"][idx] = editing_text_area
+                st.session_state["editing_idx"] = None
+                st.rerun()
+            revise_instruction= st.text_area("How would you like to revise this paragraph?", placeholder="Make the tone softer")
+            if st.button("Revise", key=f"revise-{idx}"):
+                revised_paragraph = invoke_llm(revise_prompt(revise_instruction, editing_text_area))
+                st.session_state["article"][idx] = revised_paragraph
+                st.rerun()
+        st.markdown("---")
             
             
     else:
-        paragraph
+        text_col, action_col = st.columns([0.8, 0.2])
+        with text_col:
+            paragraph
     # when the paragraph is clicked, turn the text into a text area with the paragraph as placeholder
-        if st.button("^ edit", key=f"edit-{idx}"):
-            st.session_state["editing_idx"] = idx
-            st.rerun()
+        with action_col:
+            if st.button("edit", key=f"edit-{idx}"):
+                st.session_state["editing_idx"] = idx
+                st.rerun()
             
 st.markdown('---')
-if st.button("Export finished article"):
-    st.text_area("Finished article", value="\n\n".join(st.session_state["article"]))
+st.markdown("## Copy the article below")
+st.text_area("Finished article", value="\n".join(st.session_state["article"]))
