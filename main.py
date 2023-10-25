@@ -130,11 +130,13 @@ for idx, paragraph in enumerate(st.session_state["article"]):
             if editing_text_area != st.session_state["article"][idx] or st.button("Save", key=f"edit-{idx}"):
                 st.session_state["article"][idx] = editing_text_area
                 st.session_state["editing_idx"] = None
+                st.session_state["article"] = split_paragraphs("\n".join(st.session_state["article"])) # One paragraph might be edited to two
                 st.rerun()
             revise_instruction= st.text_area("How would you like to revise this paragraph?", placeholder="Make the tone softer")
             if st.button("Revise", key=f"revise-{idx}"):
                 revised_paragraph = invoke_llm(revise_prompt(revise_instruction, editing_text_area))
                 st.session_state["article"][idx] = revised_paragraph
+                st.session_state["article"] = split_paragraphs("\n".join(st.session_state["article"])) # One paragraph might be edited to two
                 st.rerun()
         st.markdown("---")
             
