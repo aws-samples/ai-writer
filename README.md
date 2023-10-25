@@ -27,7 +27,9 @@ The application has the following functionality:
 Requirements:
 
 - Python 3
-- An AWS account with Amazon Bedrock access
+- An AWS account with [Amazon Bedrock access](https://docs.aws.amazon.com/bedrock/latest/userguide/security_iam_id-based-policy-examples.html#security_iam_id-based-policy-examples-console)
+	- Make sure you have the required [IAM permission](https://docs.aws.amazon.com/bedrock/latest/userguide/security_iam_id-based-policy-examples.html#security_iam_id-based-policy-examples-console) and accepted the model [EULAs](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
+	- Follow [this guide](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html) to set up the AWS SDK credentails.
 
 ```
 pip install -r requirements.txt
