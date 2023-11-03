@@ -64,7 +64,7 @@ def main():
     is_starting_over = len(st.session_state["article"]) == 0
 
     with st.expander("Start over", expanded = is_starting_over):
-        article_prompt = st.text_area("What would you like to write?", placeholder="A short story about an unicorn")
+        article_prompt = st.text_area("What would you like to write?", placeholder="A short story about an unicorn, a happy birthday email")
         
         if st.button("Write"):
             # Using this instead of using button.disabled because when you enter something into the text_area, 
@@ -77,7 +77,7 @@ def main():
             st.rerun()
             
     with st.expander("Revise the whole article", expanded = not is_starting_over):
-        overall_revise_instruction = st.text_area("How would you like to revise the whole article?", placeholder="Change from third-person to first-person")
+        overall_revise_instruction = st.text_area("How would you like to revise the whole article?", placeholder="Change from third-person to first-person. Make it longer.")
         if st.button("Revise"):
             if st.session_state["article"] == []:
                 st.error("Please write something first")
