@@ -67,6 +67,16 @@ def main():
             revised_article = invoke_llm(overall_revise_prompt(overall_revise_instruction, "\n\n".join(st.session_state["article"])))
             st.session_state["article"] = split_paragraphs(revised_article)
 
+    with st.expander("Import", expanded = False):
+        import_article = st.text_area("Paste an existing article here", placeholder="Paste an existing article here")
+        if st.button("Import"):
+            if import_article.strip() == "":
+                st.error("Please paste a valid article")
+                return
+            st.session_state["article"] = split_paragraphs(import_article)
+            st.session_state["editing_idx"] = None
+            st.session_state["article"] = split_paragraphs("\n".join(st.session_state["article"])) # One paragraph might be edited to two
+            st.rerun()
 
     # Add a devider
     st.markdown("---")
